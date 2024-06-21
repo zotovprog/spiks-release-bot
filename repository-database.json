@@ -1,0 +1,8 @@
+[
+  {
+    "repositoryName": "mapgl-sandbox",
+    "infraRepositoryName": "mapgl-sandbox",
+    "infraVariable": "DIALOGUE_FRONT_DOCKER_IMAGE",
+    "format": "{version}-{environment}"
+  }
+]
