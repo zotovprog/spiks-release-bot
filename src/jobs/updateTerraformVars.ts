@@ -1,3 +1,5 @@
+import { Context } from "probot";
+
 const updateTerraformVars = async ({
   context,
   newVersion,
@@ -6,7 +8,7 @@ const updateTerraformVars = async ({
   environment,
   infraVariable,
 }: {
-  context: any;
+  context: Context<"issues">;
   newVersion: string;
   owner: string;
   repo: string;
@@ -84,7 +86,7 @@ const updateTerraformVars = async ({
 
   await context.octokit.issues.createComment(
     context.issue({
-      body: `${infraVariable} обновлен до версии ${newVersion}. Изменения были смержены с основной веткой.`,
+      body: `\`${infraVariable}\` обновлен до версии \`${newVersion}\`. Изменения были смержены с основной веткой.`,
     })
   );
 };

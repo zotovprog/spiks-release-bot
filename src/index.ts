@@ -1,14 +1,16 @@
-import { Probot } from "probot";
+import { OctokitOptions } from "probot/lib/types.js";
+import { RepositoryDatabase } from "./types/repositoryDatabase.js";
+import { Context, Probot } from "probot";
 import {
+  createNewRelease,
+  getLastReleaseVersion,
   getNextVersion,
   updateTerraformVars,
-  getLastReleaseVersion,
 } from "./jobs/index.js";
 import { parseIssueTitle } from "./utils/parseIssueTitle.js";
-import { RepositoryDatabase } from "./types/repositoryDatabase.js";
 
 export default (app: Probot) => {
-  app.on("issues.opened", async (context) => {
+  app.on("issues.opened", async (context: Context<"issues">) => {
     try {
       const issueLabels = context.payload.issue.labels?.map(
         (label: { name: string }) => label.name
@@ -27,42 +29,50 @@ export default (app: Probot) => {
 
       // Получаем данные о репозиториях из файла repository-database.json
       // Получаем его через github для того, чтобы всегда иметь актуальное состояние файла
-      const repositoryInfoData = await context.octokit.repos.getContent({
-        owner: "zotovprog",
-        repo: "spiks-release-bot",
-        path: "repository-database.json",
-        ref: "main",
+
+      const owner = context.payload.repository.owner.login;
+      const repo = context.payload.repository.name;
+
+      const issueName = context.payload.issue.title;
+
+      const { environments, releaseType } = parseIssueTitle(issueName);
+
+      const {
+        version: previousReleaseVersion,
+        timestamp: lastReleaseTimestamp,
+      } = await getLastReleaseVersion(context, owner, repo);
+
+      const newVersion = getNextVersion(previousReleaseVersion, releaseType);
+
+      await createNewRelease({
+        context,
+        newVersion,
+        owner,
+        repo,
+        lastReleaseTimestamp,
       });
 
+      const repositoryInfoData: OctokitOptions =
+        await context.octokit.repos.getContent({
+          owner: "zotovprog",
+          repo: "spiks-release-bot",
+          path: "repository-database.json",
+          ref: "main",
+        });
+
       const fileContent = Buffer.from(
-        // @ts-ignore
         repositoryInfoData.data.content,
         "base64"
       ).toString("utf-8");
 
       const jsonContent = JSON.parse(fileContent);
 
-      const owner = context.payload.repository.owner.login;
-      const repo = context.payload.repository.name;
-
       const { infraVariable } = jsonContent.find(
         (repositoryData: RepositoryDatabase) =>
           repositoryData.repositoryName === repo
       );
 
-      const issueName = context.payload.issue.title;
-
-      const { environments, releaseType } = parseIssueTitle(issueName);
-
       const environment = environments[0];
-
-      const previousReleaseVersion = await getLastReleaseVersion(
-        context,
-        owner,
-        repo
-      );
-
-      const newVersion = getNextVersion(previousReleaseVersion, releaseType);
 
       // Обновляем версию в инфре
       await updateTerraformVars({
