@@ -14,7 +14,8 @@
   "scripts": {
     "build": "tsc",
     "start": "probot run ./lib/index.js",
-    "test": "vitest"
+    "test": "vitest",
+    "dev": "npm run build && npm run start"
   },
   "dependencies": {
     "probot": "^13.0.1"
